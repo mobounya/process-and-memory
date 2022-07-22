@@ -3,6 +3,8 @@
 #include <linux/module.h>
 #include <linux/fs_struct.h>
 #include <linux/path.h>
+#include <linux/get_pid_info.h>
+#include <linux/vmalloc.h>
 
 static char *get_full_path(struct dentry *entry)
 {
@@ -61,18 +63,6 @@ static pid_t	*get_array_of_child_procceses_pid(struct list_head *children_list, 
 	return new_children_list;
 }
 
-struct pid_info {
-	pid_t					pid;
-	unsigned int	state;
-	void					*stack;
-	u64						age;
-	size_t				n_children;
-	pid_t					*child_processes;
-	pid_t					parent_pid;
-	char					*root;
-	char					*pwd;
-};
-
 SYSCALL_DEFINE2(get_pid_info, struct pid_info *, data, int, pid)
 {
 	pid_t		*children;
@@ -82,7 +72,7 @@ SYSCALL_DEFINE2(get_pid_info, struct pid_info *, data, int, pid)
 	struct	path pwd;
 	char		*temp;
 	loff_t	off;
-	
+
 	off = 0;
 	for_each_process(process_list) {
 		if (process_list->pid == pid)
@@ -91,14 +81,25 @@ SYSCALL_DEFINE2(get_pid_info, struct pid_info *, data, int, pid)
 
 			data->pid = process_list->pid;
 
-			data->state = process_list->__state;
+			if (task_is_running(process_list))
+				data->state = TASK_RUNNING;
+			else if (task_is_traced(process_list))
+				data->state = __TASK_TRACED;
+			else if (task_is_stopped(process_list))
+				data->state = __TASK_STOPPED;
+			else
+				data->state = -1;
 
-			data->stack = process_list->stack;
-
+			if (process_list->mm)
+				data->stack = (void *)(process_list->mm->start_stack);
+			else
+				data->stack = NULL;
 			data->age = process_list->start_time;
 
 			children = get_array_of_child_procceses_pid(&(process_list->children), &n_children);
 			simple_read_from_buffer(data->child_processes, 20 * sizeof(pid_t), &off, children, n_children * sizeof(pid_t));
+			kfree(children);
+
 			data->n_children = n_children;
 
 			if (process_list->fs) {
@@ -108,10 +109,12 @@ SYSCALL_DEFINE2(get_pid_info, struct pid_info *, data, int, pid)
 				off = 0;
 				temp = get_full_path(root.dentry);
 				simple_read_from_buffer(data->root, 255, &off, temp, strlen(temp));
+				kfree(temp);
 
 				off = 0;
 				temp = get_full_path(pwd.dentry);
 				simple_read_from_buffer(data->pwd, 255, &off, temp, strlen(temp));
+				kfree(temp);
 			}
 		}
 	}
