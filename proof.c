@@ -49,7 +49,7 @@ int main(void)
 			{
 				i = fake_function(&i);
 			}
-			sleep(60);
+			// sleep(60);
 			return 0;
 		}
 	}
