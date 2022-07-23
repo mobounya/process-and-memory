@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-//
+
 #include <linux/syscalls.h>
 #include <linux/sched.h>
 #include <linux/module.h>
