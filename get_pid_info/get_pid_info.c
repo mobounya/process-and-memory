@@ -81,14 +81,12 @@ SYSCALL_DEFINE2(get_pid_info, struct pid_info *, data, int, pid)
 
 			data->pid = process_list->pid;
 
-			if (task_is_running(process_list))
-				data->state = TASK_RUNNING;
-			else if (task_is_traced(process_list))
-				data->state = __TASK_TRACED;
-			else if (task_is_stopped(process_list))
-				data->state = __TASK_STOPPED;
-			else
+			if (process_list->__state == -1)
 				data->state = -1;
+			else if (process_list->__state == TASK_RUNNING)
+				data->state = TASK_RUNNING;
+			else if (process_list->__state > TASK_RUNNING)
+				data->state = 1;
 
 			if (process_list->mm)
 				data->stack = (void *)(process_list->mm->start_stack);
