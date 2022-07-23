@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+//
 #include <linux/syscalls.h>
 #include <linux/sched.h>
 #include <linux/module.h>
@@ -14,7 +16,7 @@ static char *get_full_path(struct dentry *entry)
 
 	buffer = kmalloc(sizeof(char) * 256, GFP_KERNEL);
 
-	if (buffer == NULL)
+	if (!buffer)
 		return NULL;
 
 	full_path = dentry_path_raw(entry, buffer, 256);
@@ -43,7 +45,9 @@ static void		initialize_list(pid_t *children, size_t size)
 		children[i] = 0;
 }
 
-static pid_t	*get_array_of_child_procceses_pid(struct list_head *children_list, size_t *n_children)
+static pid_t	*get_array_of_child_procceses_pid(struct list_head
+						*children_list,
+						size_t *n_children)
 {
 	struct task_struct *child;
 	struct list_head *list;
@@ -75,8 +79,7 @@ SYSCALL_DEFINE2(get_pid_info, struct pid_info *, data, int, pid)
 
 	off = 0;
 	for_each_process(process_list) {
-		if (process_list->pid == pid)
-		{
+		if (process_list->pid == pid) {
 			data->parent_pid = process_list->parent->pid;
 
 			data->pid = process_list->pid;
@@ -94,8 +97,13 @@ SYSCALL_DEFINE2(get_pid_info, struct pid_info *, data, int, pid)
 				data->stack = NULL;
 			data->age = process_list->start_time;
 
-			children = get_array_of_child_procceses_pid(&(process_list->children), &n_children);
-			simple_read_from_buffer(data->child_processes, 20 * sizeof(pid_t), &off, children, n_children * sizeof(pid_t));
+			children = get_array_of_child_procceses_pid
+			(&process_list->children, &n_children);
+
+			simple_read_from_buffer(data->child_processes,
+						20 * sizeof(pid_t), &off,
+						children,
+						n_children * sizeof(pid_t));
 			kfree(children);
 
 			data->n_children = n_children;
